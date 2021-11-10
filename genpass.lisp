@@ -168,6 +168,12 @@ second."
                                (read-from-string
                                 (first (gethash "c" options))
                                 nil nil)))
-                         (list :crack-cpu-speed speed)))))
+                         (list :crack-cpu-speed speed)))
+                     (when (gethash "seed-nbits" options)
+                       (let* ((nbits
+                               (read-from-string
+                                (first (gethash "seed-nbits" options))
+                                nil nil)))
+                         (list :seed-nbits nbits)))))
            (format t "~s~%~%Character set size: ~a~%Password length: ~a~%Entropy bits: ~a~%Crack time (years): ~a~%"
                    password charsetsize length entropy cracktime)))))))
