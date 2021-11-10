@@ -166,7 +166,7 @@ second."
                      (when (gethash "c" options)
                        (let* ((speed
                                (read-from-string
-                                (gethash "c" options)
+                                (first (gethash "c" options))
                                 nil nil)))
                          (list :crack-cpu-speed speed)))))
            (format t "~s~%~%Character set size: ~a~%Password length: ~a~%Entropy bits: ~a~%Crack time (years): ~a~%"
