@@ -2,7 +2,7 @@ genpass is a simple SBCL script to generate passwords.
 
 It depends on
 
-* cl-getopt :https://www.github.com/ghollisjr/cl-getopt
+* cl-getopt: https://www.github.com/ghollisjr/cl-getopt
 
 and assumes a fixed location for the SBCL core file as written in the
 hash-bang line at the top of the script as well as assuming that
