@@ -37,3 +37,5 @@ build the SBCL core file, then place it somewhere you like and edit
 genpass.lisp if necessary.
 
 Run getopt.lisp with the "-h" option for usage.
+
+genpass is in the public domain.
