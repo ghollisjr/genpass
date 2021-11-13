@@ -33,13 +33,24 @@
           (codes->chars (range 91 96))
           (codes->chars (range 123 126))))
 
-(defun random-seed (&optional (nbits 32))
+(defun urandom-seed (&optional (nbits 32))
   (with-open-file (rand "/dev/urandom"
                         :direction :input
                         :element-type (list 'unsigned-byte nbits))
     (let* ((result (make-array 1 :element-type (list 'unsigned-byte nbits))))
       (read-sequence result rand)
       (elt result 0))))
+
+(defparameter *state* nil)
+
+(defun ensure-seed (&optional (nbits 32))
+  (when (not *state*)
+    (setf *state*
+          (seed-random-state (urandom-seed nbits)))))
+
+(defun rand (arg)
+  (ensure-seed)
+  (random arg *state*))
 
 (defun genpass (length
                 &key
@@ -63,8 +74,7 @@ character set and password length, and the estimated amount of time in
 years it would take to crack the password given the supplied
 crack-cpu-speed which estimates the number of crack attempts per
 second."
-  (let* ((state (seed-random-state (random-seed seed-nbits)))
-         (result (make-string length))
+  (let* ((result (make-string length))
          (charset
           (remove-if-not
            filter
@@ -88,7 +98,7 @@ second."
        for i below length
        do (setf (elt result i)
                 (aref charset
-                      (random nchars state))))
+                      (rand nchars))))
     (values result
             nchars
             length
