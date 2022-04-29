@@ -1,4 +1,4 @@
-#!/usr/bin/env -S sbcl --core ${HOME}/lib/sbcl-cores/cl-getopt.core --script
+#!/usr/bin/env -S sbcl --core ${HOME}/lib/sbcl-cores/scripting.core --script
 (import (list 'cl-getopt:getopt
               'cl-getopt:option-descriptions))
 
@@ -136,12 +136,20 @@ second."
               :argspec :required)
         (list :long "seed-nbits"
               :description "number of seed bits to read from /dev/urandom (default 64)"
-              :argspec :required)))
+              :argspec :required)
+        (list :short "x"
+              :long "clipboard"
+              :description "store password in clipboard"
+              :argspec :none)
+        (list :short "q"
+              :long "quiet"
+              :description "suppress output"
+              :argspec :none)))
 
 (defun help ()
   (format t "Usage: genpass.lisp [options] <length>~%~%~a~%"
           (option-descriptions *options*
-                               :column-width 17)))
+                               :column-width 19)))
 
 (let* ((args sb-ext:*posix-argv*))
   (multiple-value-bind (options remaining)
@@ -185,5 +193,8 @@ second."
                                 (first (gethash "seed-nbits" options))
                                 nil nil)))
                          (list :seed-nbits nbits)))))
-           (format t "~s~%~%Character set size: ~a~%Password length: ~a~%Entropy bits: ~a~%Crack time (years): ~a~%"
-                   password charsetsize length entropy cracktime)))))))
+           (when (gethash "x" options)
+             (trivial-clipboard:text password))
+           (unless (gethash "q" options)
+             (format t "~a~%~%Character set size: ~a~%Password length: ~a~%Entropy bits: ~a~%Crack time (years): ~a~%"
+                     password charsetsize length entropy cracktime))))))))
