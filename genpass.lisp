@@ -1,4 +1,7 @@
 #!/usr/bin/env -S sbcl --core ${HOME}/lib/sbcl-cores/scripting.core --script
+(unless (member :script *features*)
+  (ql:quickload :scripting))
+
 (import (list 'cl-getopt:getopt
               'cl-getopt:option-descriptions))
 
@@ -7,8 +10,8 @@
 
 (defun range (start end)
   (loop
-     for i from start to end
-     collecting i))
+    for i from start to end
+    collecting i))
 
 (defun alphabet-lower-chars ()
   "Returns all lower-case alphabet characters"
@@ -48,9 +51,13 @@
     (setf *state*
           (seed-random-state (urandom-seed nbits)))))
 
-(defun rand (arg)
-  (ensure-seed)
+(defun rand (arg &optional seed-nbits)
+  (ensure-seed seed-nbits)
   (random arg *state*))
+
+(defun entropy-bits (length nchars)
+  (* length
+     (log nchars 2)))
 
 (defun genpass (length
                 &key
@@ -76,29 +83,28 @@ crack-cpu-speed which estimates the number of crack attempts per
 second."
   (let* ((result (make-string length))
          (charset
-          (remove-if-not
-           filter
-           (concatenate 'vector
-                        (when uppercase-p
-                          (alphabet-upper-chars))
-                        (when lowercase-p
-                          (alphabet-lower-chars))
-                        (when number-p
-                          (number-chars))
-                        (when space-p
-                          (space-chars))
-                        (when symbol-p
-                          (symbol-chars)))))
+           (remove-if-not
+            filter
+            (concatenate 'vector
+                         (when uppercase-p
+                           (alphabet-upper-chars))
+                         (when lowercase-p
+                           (alphabet-lower-chars))
+                         (when number-p
+                           (number-chars))
+                         (when space-p
+                           (space-chars))
+                         (when symbol-p
+                           (symbol-chars)))))
          (nchars (length charset))
-         (entropy-bits (* length
-                          (log nchars 2)))
+         (entropy-bits (entropy-bits length nchars))
          (crack-time (/ (expt 2d0 entropy-bits)
                         (* crack-cpu-speed 365.25d0 24.0d0 60.0d0 60.0d0))))
     (loop
-       for i below length
-       do (setf (elt result i)
-                (aref charset
-                      (rand nchars))))
+      for i below length
+      do (setf (elt result i)
+               (aref charset
+                     (rand nchars seed-nbits))))
     (values result
             nchars
             length
@@ -150,51 +156,54 @@ second."
   (format t "Usage: genpass.lisp [options] <length>~%~%~a~%"
           (option-descriptions *options*
                                :column-width 19)))
+(defun main ()
+  (let* ((args sb-ext:*posix-argv*))
+    (multiple-value-bind (options remaining)
+        (getopt args *options*)
+      (cond
+        ((or (null (rest args))
+             (null remaining))
+         (help))
+        ((gethash "h" options)
+         (help))
+        (t
+         (let* ((length
+                  (read-from-string
+                   (first remaining))))
+           (multiple-value-bind
+                 (password charsetsize length entropy cracktime)
+               (apply #'genpass
+                      length
+                      ;; needs work
+                      (append
+                       (when (gethash "l" options)
+                         (list :lowercase-p nil))
+                       (when (gethash "u" options)
+                         (list :uppercase-p nil))
+                       (when (gethash "n" options)
+                         (list :number-p nil))
+                       (when (gethash "w" options)
+                         (list :space-p nil))
+                       (when (gethash "s" options)
+                         (list :symbol-p nil))
+                       ;; (filter (constantly t))
+                       (when (gethash "c" options)
+                         (let* ((speed
+                                  (read-from-string
+                                   (first (gethash "c" options))
+                                   nil nil)))
+                           (list :crack-cpu-speed speed)))
+                       (when (gethash "seed-nbits" options)
+                         (let* ((nbits
+                                  (read-from-string
+                                   (first (gethash "seed-nbits" options))
+                                   nil nil)))
+                           (list :seed-nbits nbits)))))
+             (when (gethash "x" options)
+               (trivial-clipboard:text password))
+             (unless (gethash "q" options)
+               (format t "~a~%~%Character set size: ~a~%Password length: ~a~%Entropy bits: ~a~%Crack time (years): ~a~%"
+                       password charsetsize length entropy cracktime)))))))))
 
-(let* ((args sb-ext:*posix-argv*))
-  (multiple-value-bind (options remaining)
-      (getopt args *options*)
-    (cond
-      ((or (null (rest args))
-           (null remaining))
-       (help))
-      ((gethash "h" options)
-       (help))
-      (t
-       (let* ((length
-               (read-from-string
-                (first remaining))))
-         (multiple-value-bind
-               (password charsetsize length entropy cracktime)
-             (apply #'genpass
-                    length
-                    ;; needs work
-                    (append
-                     (when (gethash "l" options)
-                       (list :lowercase-p nil))
-                     (when (gethash "u" options)
-                       (list :uppercase-p nil))
-                     (when (gethash "n" options)
-                       (list :number-p nil))
-                     (when (gethash "w" options)
-                       (list :space-p nil))
-                     (when (gethash "s" options)
-                       (list :symbol-p nil))
-                     ;; (filter (constantly t))
-                     (when (gethash "c" options)
-                       (let* ((speed
-                               (read-from-string
-                                (first (gethash "c" options))
-                                nil nil)))
-                         (list :crack-cpu-speed speed)))
-                     (when (gethash "seed-nbits" options)
-                       (let* ((nbits
-                               (read-from-string
-                                (first (gethash "seed-nbits" options))
-                                nil nil)))
-                         (list :seed-nbits nbits)))))
-           (when (gethash "x" options)
-             (trivial-clipboard:text password))
-           (unless (gethash "q" options)
-             (format t "~a~%~%Character set size: ~a~%Password length: ~a~%Entropy bits: ~a~%Crack time (years): ~a~%"
-                     password charsetsize length entropy cracktime))))))))
+(when (member :script *features*)
+  (main))
